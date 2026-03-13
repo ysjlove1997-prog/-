@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>한글 단어 풍선 터뜨리기</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard", sans-serif;
+      background: linear-gradient(to bottom, #bfe8ff 0%, #dff6ff 45%, #fffafc 100%);
+    }
+
+    body {
+      position: relative;
+    }
+
+    .game-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .sky {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .cloud {
+      position: absolute;
+      background: rgba(255,255,255,0.88);
+      border-radius: 999px;
+      opacity: 0.9;
+    }
+
+    .cloud::before,
+    .cloud::after {
+      content: "";
+      position: absolute;
+      background: rgba(255,255,255,0.88);
+      border-radius: 999px;
+    }
+
+    .cloud::before {
+      width: 52%;
+      height: 92%;
+      left: 10%;
+      top: -35%;
+    }
+
+    .cloud::after {
+      width: 42%;
+      height: 76%;
+      right: 12%;
+      top: -24%;
+    }
+
+    .top-ui {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(96vw, 1150px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 30;
+    }
+
+    .title-box {
+      background: rgba(255,255,255,0.93);
+      padding: 10px 18px;
+      border-radius: 24px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+
+    .title-box h1 {
+      margin: 0 0 2px;
+      font-size: clamp(22px, 3vw, 34px);
+      color: #2f5d99;
+    }
+
+    .title-box p {
+      margin: 0;
+      font-size: clamp(14px, 2vw, 20px);
+      color: #51627d;
+    }
+
+    .mode-row,
+    .control-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-size: clamp(15px, 1.8vw, 21px);
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.10);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 22px rgba(0,0,0,0.14);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn.primary {
+      background: #ff78b0;
+      color: white;
+    }
+
+    .btn.secondary {
+      background: white;
+      color: #47618f;
+    }
+
+    .btn.mode {
+      background: rgba(255,255,255,0.95);
+      color: #47618f;
+    }
+
+    .btn.mode.active {
+      background: #6f8cff;
+      color: white;
+    }
+
+    .score-box,
+    .set-label {
+      background: rgba(255,255,255,0.94);
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: clamp(16px, 1.8vw, 22px);
+      font-weight: 900;
+      color: #3d5f8f;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+    }
+
+    .balloon-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+    }
+
+    .balloon {
+      position: absolute;
+      width: clamp(240px, 22vw, 340px);
+      height: clamp(300px, 28vw, 420px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px 10px 28px;
+      color: white;
+      font-size: 72px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.06em;
+      user-select: none;
+      cursor: pointer;
+      border-radius: 50% 50% 48% 48%;
+      box-shadow:
+        inset -12px -16px 24px rgba(0,0,0,0.08),
+        inset 10px 12px 18px rgba(255,255,255,0.22),
+        0 16px 24px rgba(0,0,0,0.14);
+      animation: bob 2.8s ease-in-out infinite;
+      transition: transform 0.12s ease;
+      word-break: keep-all;
+      overflow: hidden;
+    }
+
+    .balloon:hover {
+      transform: scale(1.04);
+    }
+
+    .balloon::before {
+      content: "";
+      position: absolute;
+      bottom: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 18px;
+      height: 14px;
+      background: inherit;
+      clip-path: polygon(50% 100%, 0 0, 100% 0);
+      filter: brightness(0.92);
+    }
+
+    .balloon::after {
+      content: "";
+      position: absolute;
+      bottom: -42px;
+      left: 50%;
+      width: 3px;
+      height: 48px;
+      background: rgba(100,100,100,0.55);
+      transform: translateX(-50%);
+    }
+
+    .balloon.popped {
+      animation: pop 0.26s ease forwards;
+      pointer-events: none;
+    }
+
+    .burst {
+      position: absolute;
+      font-size: clamp(30px, 4vw, 56px);
+      font-weight: 900;
+      color: #ff5b97;
+      pointer-events: none;
+      z-index: 40;
+      animation: burstUp 0.7s ease forwards;
+      text-shadow: 0 3px 8px rgba(255,255,255,0.75);
+    }
+
+    .all-clear {
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      background: rgba(255,255,255,0.96);
+      padding: 24px 30px;
+      border-radius: 28px;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.15);
+      min-width: min(88vw, 460px);
+      display: none;
+    }
+
+    .all-clear.show {
+      display: block;
+      animation: panelIn 0.28s ease;
+    }
+
+    .all-clear h2 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+      color: #ff679f;
+    }
+
+    .all-clear p {
+      margin: 0 0 16px;
+      font-size: clamp(18px, 2.1vw, 24px);
+      color: #4d5c75;
+      line-height: 1.5;
+    }
+
+    .ground {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 90px;
+      background: linear-gradient(to top, #9be27b, #bdf1a6);
+      z-index: 2;
+    }
+
+    @keyframes bob {
+      0%   { transform: translateY(0px); }
+      50%  { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(1); opacity: 1; }
+      45%  { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(0.18); opacity: 0; }
+    }
+
+    @keyframes burstUp {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, 0) scale(0.7);
+      }
+      20% {
+        opacity: 1;
+        transform: translate(-50%, -8px) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -45px) scale(1.08);
+      }
+    }
+
+    @keyframes panelIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .balloon {
+        width: clamp(170px, 32vw, 230px);
+        height: clamp(220px, 38vw, 290px);
+        padding: 10px 8px 22px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .title-box {
+        padding: 10px 12px;
+      }
+
+      .mode-row,
+      .control-row {
+        gap: 8px;
+      }
+
+      .btn {
+        padding: 12px 16px;
+        font-size: 15px;
+      }
+
+      .score-box,
+      .set-label {
+        font-size: 16px;
+      }
+
+      .balloon {
+        width: clamp(145px, 36vw, 190px);
+        height: clamp(190px, 45vw, 250px);
+        padding: 8px 6px 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrap">
+    <div class="sky" id="sky"></div>
+
+    <div class="top-ui">
+      <div class="title-box">
+        <h1>🎈 단어 풍선 터뜨리기</h1>
+        <p>원하는 세트를 고르고 풍선을 눌러보자!</p>
+      </div>
+
+      <div class="mode-row">
+        <button class="btn mode active" data-mode="basic">기본 세트</button>
+        <button class="btn mode" data-mode="theme">같은 주제</button>
+        <button class="btn mode" data-mode="first">첫글자</button>
+        <button class="btn mode" data-mode="tricky">헷갈려요</button>
+      </div>
+
+      <div class="control-row">
+        <button class="btn primary" id="newWordsBtn">새 문제</button>
+        <button class="btn secondary" id="replayBtn">다시 하기</button>
+        <div class="set-label" id="setLabel">기본 세트</div>
+        <div class="score-box" id="scoreBox">점수 0 / 4</div>
+      </div>
+    </div>
+
+    <div class="balloon-layer" id="balloonLayer"></div>
+
+    <div class="all-clear" id="allClear">
+      <h2>와아! 성공!</h2>
+      <p>풍선을 모두 터뜨렸어!<br>새 문제로 또 해보자 🎉</p>
+      <button class="btn primary" id="nextRoundBtn">새 문제</button>
+    </div>
+
+    <div class="ground"></div>
+  </div>
+
+  <script>
+    const SETS = {
+      basic: {
+        label: "기본 세트",
+        items: [
+          ["가위", "우유", "모자", "버스"],
+          ["의자", "사과", "토끼", "바지"],
+          ["책상", "연필", "포도", "신발"],
+          ["피아노", "딸기", "양말", "자동차"],
+          ["공책", "오리", "가방", "빵"],
+          ["풀", "바나나", "침대", "고양이"],
+          ["지우개", "수박", "자전거", "치마"],
+          ["창문", "기차", "포크", "인형"],
+          ["컵", "나비", "바람", "시계"],
+          ["비누", "구름", "공", "문"]
+        ]
+      },
+      theme: {
+        label: "같은 주제",
+        items: [
+          ["가위", "풀", "연필", "공책"],
+          ["책상", "의자", "가방", "지우개"],
+          ["사과", "포도", "바나나", "딸기"],
+          ["우유", "빵", "밥", "수박"],
+          ["모자", "바지", "양말", "신발"],
+          ["토끼", "고양이", "오리", "사자"],
+          ["버스", "자동차", "기차", "자전거"],
+          ["피아노", "공", "인형", "블록"],
+          ["컵", "포크", "숟가락", "접시"],
+          ["침대", "창문", "문", "거울"]
+        ]
+      },
+      first: {
+        label: "첫글자 세트",
+        items: [
+          ["가위", "가방", "가게", "가을"],
+          ["사과", "사자", "사람", "소파"],
+          ["바지", "바나나", "바구니", "바람"],
+          ["모자", "모기", "모래", "모빌"],
+          ["우유", "우산", "운동화", "우체통"],
+          ["자전거", "자동차", "자두", "장갑"],
+          ["포도", "포크", "포장지", "포스터"],
+          ["시계", "시소", "시장", "시금치"],
+          ["비누", "비행기", "비둘기", "비옷"],
+          ["구름", "구두", "구슬", "구멍"]
+        ]
+      },
+      tricky: {
+        label: "헷갈려요",
+        items: [
+          ["가위", "가방", "우유", "모자"],
+          ["사과", "사자", "버스", "피아노"],
+          ["바지", "바나나", "의자", "토끼"],
+          ["우유", "우산", "신발", "빵"],
+          ["모자", "모기", "자동차", "딸기"],
+          ["비누", "비옷", "포도", "책상"],
+          ["시계", "시장", "가위", "양말"],
+          ["구두", "구름", "사과", "버스"],
+          ["자두", "자동차", "풀", "오리"],
+          ["포크", "포도", "침대", "공책"]
+        ]
+      }
+    };
+
+    const BALLOON_COLORS = ["#ff7aa8", "#ff9f68", "#8a7dff", "#56c6ff"];
+
+    const balloonLayer = document.getElementById("balloonLayer");
+    const scoreBox = document.getElementById("scoreBox");
+    const newWordsBtn = document.getElementById("newWordsBtn");
+    const replayBtn = document.getElementById("replayBtn");
+    const nextRoundBtn = document.getElementById("nextRoundBtn");
+    const allClear = document.getElementById("allClear");
+    const sky = document.getElementById("sky");
+    const setLabel = document.getElementById("setLabel");
+    const modeButtons = document.querySelectorAll(".btn.mode");
+
+    let currentMode = "basic";
+    let currentWords = [];
+    let currentSetIndex = 0;
+    let score = 0;
+    let poppedCount = 0;
+
+    function shuffle(array) {
+      const copied = [...array];
+      for (let i = copied.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copied[i], copied[j]] = [copied[j], copied[i]];
+      }
+      return copied;
+    }
+
+    function getRandomSetIndex(mode, excludeIndex = -1) {
+      const pool = SETS[mode].items;
+      if (pool.length <= 1) return 0;
+
+      let newIndex = Math.floor(Math.random() * pool.length);
+      while (newIndex === excludeIndex) {
+        newIndex = Math.floor(Math.random() * pool.length);
+      }
+      return newIndex;
+    }
+
+    function updateModeButtons() {
+      modeButtons.forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.mode === currentMode);
+      });
+      setLabel.textContent = SETS[currentMode].label;
+    }
+
+    function updateScore() {
+      scoreBox.textContent = `점수 ${score} / ${currentWords.length}`;
+    }
+
+    function createCloud(x, y, w, h, speed) {
+      const cloud = document.createElement("div");
+      cloud.className = "cloud";
+      cloud.style.left = x + "px";
+      cloud.style.top = y + "px";
+      cloud.style.width = w + "px";
+      cloud.style.height = h + "px";
+      sky.appendChild(cloud);
+
+      cloud.animate(
+        [
+          { transform: "translateX(0px)" },
+          { transform: `translateX(${speed}px)` }
+        ],
+        {
+          duration: 28000 + Math.random() * 16000,
+          iterations: Infinity,
+          direction: "alternate",
+          easing: "ease-in-out"
+        }
+      );
+    }
+
+    function buildSky() {
+      sky.innerHTML = "";
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      for (let i = 0; i < 4; i++) {
+        const w = 110 + Math.random() * 110;
+        const h = 38 + Math.random() * 28;
+        const x = Math.random() * Math.max(50, width - w);
+        const y = 60 + Math.random() * (height * 0.28);
+        const speed = (Math.random() * 80 + 30) * (Math.random() > 0.5 ? 1 : -1);
+        createCloud(x, y, w, h, speed);
+      }
+    }
+
+    function speakWord(word) {
+      if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = "ko-KR";
+      utterance.rate = 0.88;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function createBurst(x, y) {
+      const burst = document.createElement("div");
+      burst.className = "burst";
+      burst.textContent = "팡!";
+      burst.style.left = x + "px";
+      burst.style.top = y + "px";
+      document.body.appendChild(burst);
+
+      setTimeout(() => {
+        burst.remove();
+      }, 700);
+    }
+
+    function popBalloon(balloon) {
+      if (balloon.classList.contains("popped")) return;
+
+      balloon.classList.add("popped");
+
+      const rect = balloon.getBoundingClientRect();
+      createBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+      speakWord(balloon.dataset.word);
+
+      score += 1;
+      poppedCount += 1;
+      updateScore();
+
+      setTimeout(() => {
+        balloon.remove();
+        if (poppedCount === currentWords.length) {
+          allClear.classList.add("show");
+        }
+      }, 260);
+    }
+
+    function getBalloonPositions() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      if (w <= 640) {
+        return [
+          { x: w * 0.10, y: h * 0.24 },
+          { x: w * 0.52, y: h * 0.25 },
+          { x: w * 0.10, y: h * 0.56 },
+          { x: w * 0.52, y: h * 0.57 }
+        ];
+      }
+
+      if (w <= 980) {
+        return [
+          { x: w * 0.12, y: h * 0.24 },
+          { x: w * 0.56, y: h * 0.24 },
+          { x: w * 0.12, y: h * 0.56 },
+          { x: w * 0.56, y: h * 0.56 }
+        ];
+      }
+
+      return [
+        { x: w * 0.08, y: h * 0.24 },
+        { x: w * 0.39, y: h * 0.22 },
+        { x: w * 0.67, y: h * 0.25 },
+        { x: w * 0.36, y: h * 0.56 }
+      ];
+    }
+
+    function getFontSizeByWord(word) {
+      if (word.length === 1) return "110px";
+      if (word.length === 2) return "88px";
+      if (word.length === 3) return "72px";
+      if (word.length === 4) return "58px";
+      return "48px";
+    }
+
+    function makeBalloon(word, index, x, y) {
+      const balloon = document.createElement("div");
+      balloon.className = "balloon";
+      balloon.textContent = word;
+      balloon.dataset.word = word;
+      balloon.style.left = `${x}px`;
+      balloon.style.top = `${y}px`;
+      balloon.style.background = BALLOON_COLORS[index % BALLOON_COLORS.length];
+      balloon.style.animationDelay = `${Math.random() * 0.8}s`;
+      balloon.style.fontSize = getFontSizeByWord(word);
+      balloon.addEventListener("click", () => popBalloon(balloon));
+      return balloon;
+    }
+
+    function loadNewSet() {
+      currentSetIndex = getRandomSetIndex(currentMode, currentSetIndex);
+      currentWords = [...SETS[currentMode].items[currentSetIndex]];
+    }
+
+    function renderRound(useNewSet = true) {
+      balloonLayer.innerHTML = "";
+      allClear.classList.remove("show");
+
+      score = 0;
+      poppedCount = 0;
+
+      if (useNewSet || currentWords.length === 0) {
+        loadNewSet();
+      }
+
+      updateModeButtons();
+      updateScore();
+
+      const positions = getBalloonPositions();
+
+      currentWords.forEach((word, index) => {
+        const pos = positions[index];
+        const balloon = makeBalloon(word, index, pos.x, pos.y);
+        balloonLayer.appendChild(balloon);
+      });
+    }
+
+    modeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentMode = btn.dataset.mode;
+        currentSetIndex = -1;
+        renderRound(true);
+      });
+    });
+
+    newWordsBtn.addEventListener("click", () => {
+      renderRound(true);
+    });
+
+    replayBtn.addEventListener("click", () => {
+      renderRound(false);
+    });
+
+    nextRoundBtn.addEventListener("click", () => {
+      renderRound(true);
+    });
+
+    window.addEventListener("resize", () => {
+      buildSky();
+      renderRound(false);
+    });
+
+    buildSky();
+    renderRound(true);
+  </script>
+</body>
+</html>
